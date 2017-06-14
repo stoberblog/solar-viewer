@@ -1,0 +1,1409 @@
+
+<meta charset="utf-8" />
+<title>Solar Viewer</title>
+<head>
+<!-- jsquery.js -->
+<script src="jquery-3.1.1.min.js"></script>
+<!-- Plotly.js -->
+<script src="plotly-latest.min.js"></script>
+<!-- papaparse.js -->
+<script src="papaparse.min.js"></script>
+<!-- papaparse.js -->
+<script src="moment.min.js"></script>
+</head>
+
+
+<style media="screen" type="text/css">
+body
+{
+	font-family: Arial, sans-serif !important;
+	font-size: 10px;
+}
+
+h1
+{
+	font-family: Arial, sans-serif !important;
+	font-size: 24px;
+	text-align: center;
+}
+h2
+{
+	font-family: Arial, sans-serif !important;
+	font-size: 16px;
+	text-align: center;
+}
+th
+{
+	font-family: Arial, sans-serif !important;
+	font-size: 12px;
+	font-weight: bold;
+	text-align: center;
+}
+td
+{
+	font-family: Arial, sans-serif !important;
+	font-size: 12px;
+}
+
+.hover
+{
+	font-family: Arial, sans-serif !important;
+	font-size: 10px;
+	background-color: #f2f2f2;
+	display: none;
+}
+
+.hovercell
+{
+	font-size: 10px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	padding-right: 10px;
+	padding-left: 10px;
+}
+
+</style>
+
+
+<!--
+<p>
+Here's a simple Plotly plot -
+    <a href="http://bit.ly/1Or9igj">plotly.js documentation</a>
+</p>
+-->
+<h1 style="text-align:center;">Solar Viewer</h1>
+<div id="tester" style="width:100%;height:90%;">
+</div>
+<div id="controlPane" style="right:0;top:100px;position:absolute;width:240;">
+<h2>Control Pane</h2> <br>
+
+
+
+<table style="width:100%">
+
+<tr>
+<td style="text-align: right;">Data shown: </td>
+<td>
+	<select id="dataTypeList" style="width: 100px;" onchange="controlPane()">
+	<option id="typeListPeriodic" value="int">Periodic</option>
+	<option id="typeListDaily"value="day">Daily</option>
+	</select>
+</td>
+</tr>
+
+<tr>
+<td style="text-align: right;">Multi-type View: </td>
+<td>
+	<select id="dataViewList" style="width: 100px;" onchange="controlPane()">
+	<option id="typeViewOver" value="over">Overlayed</option>
+	<option id="typeViewStack" value="stack">Stacked</option>
+	</select>
+</td>
+</tr>
+
+<tr>
+<td style="text-align: right;"> Live Update: </td> <td> <input type="checkbox" id="cbUpdate" onclick='controlPane(this);'> </td>
+</tr>
+
+<tr id="tblTimeStart">
+<td style="text-align: right;"> Time Start: </td> <td> <input type="text" style="width: 100px;" name="timestart" id="txtTimeStart"> </td>
+</tr>
+<tr id="tblTimeStartFmt">
+<td></td><td id="startFormatCell" style="text-align: left; font-style: italic; color: grey; font-size: 60%">Hover for format </td>
+</tr>
+</tr>
+<tr id="tblTimeStartFmtHover" class="hover">
+<td colspan="4" class="hovercell">
+<b>Formatting</b> <br><br>
+
+Time is inputted in terms of minutes [m], hours [h], days [D], months [M] or years [Y]. This must be inputted in the format:<br><br>
+DD/MM/YYYY [hh:mm] <br><br>
+
+<i>Hours and minutes are optional. Correct order is crucial.</i>
+
+</tr>
+<tr>
+<td style="text-align: right;"> Time Shown: </td> <td> <input type="text" style="width: 100px;" name="timeperiod" id="txtTimePeriod" onchange="validateTime()"> </td>
+</tr>
+<tr id="tblTimePeriodFmt">
+<td></td><td id="periodFormatCell" style="text-align: left; font-style: italic; color: grey; font-size: 60%">Hover for format </td>
+</tr>
+<tr id="tblTimePeriodFmtHover" class="hover">
+<td colspan="4"  class="hovercell">
+<b>Formatting</b> <br><br>
+
+Time length is inputted in terms of minutes [m], hours [h], days [D], months [M] or years [Y]. <br><br>
+
+An example of 3 days would simply be "3D". <br><br>
+
+1 month, 1 day, and two hours would be "2h1D1M". <br><br>
+
+<b><i>Note: Spaces can be used, as they are ignored. Order does not matter. Daily statistics only useful in multiples of days. Months are assumed to be 30 days, years 365 days.</i></b>
+</td>
+</tr>
+</table>
+
+<div id="ctr_int">
+
+<table style="width:100%">
+
+<th colspan="4">Power (W)</th>
+<tr>
+	<td style="text-align: right;">Feed</td><td><input type="checkbox" id="cb_i_pwF" onclick='cbUpdate(this);'></td>
+	<td style="text-align: right;">Production</td><td><input type="checkbox" id="cb_i_pwP" onclick='cbUpdate(this);'></td>
+</tr> <tr>
+	<td style="text-align: right;">Usage </td><td><input type="checkbox" id="cb_i_pwU" onclick='cbUpdate(this);'></td>
+</tr>
+
+<tr>
+<th colspan="4">Power Factor</th>
+</tr> <tr>
+	<td style="text-align: right;">Feed</td><td><input type="checkbox" id="cb_i_pfF" onclick='cbUpdate(this);'></td>
+	<td style="text-align: right;">Inverter</td><td><input type="checkbox" id="cb_i_pfI" onclick='cbUpdate(this);'></td>
+</tr>
+<tr>
+<th colspan="4">Energy (Wh)</th>
+</tr> <tr>
+	<td style="text-align: right;">Produced</td><td><input type="checkbox" id="cb_i_enP" onclick='cbUpdate(this);'></td>
+	<td style="text-align: right;">Imported</td><td><input type="checkbox" id="cb_i_enI" onclick='cbUpdate(this);'></td>
+	</tr> <tr>
+	<td style="text-align: right;">Exported </td><td><input type="checkbox" id="cb_i_enE" onclick='cbUpdate(this);'></td>
+</tr>
+
+<th colspan="4">Voltages (V)</th>
+</tr> <tr>
+	<td style="text-align: right;">String 1</td><td><input type="checkbox" id="cb_i_vs1" onclick='cbUpdate(this);'></td>
+	<td style="text-align: right;">String 2</td><td><input type="checkbox" id="cb_i_vs2" onclick='cbUpdate(this);'></td>
+	</tr> <tr>
+	<td style="text-align: right;">Feed</td><td><input type="checkbox" id="cb_i_vF" onclick='cbUpdate(this);'></td>
+</tr>
+<th colspan="4">Current (A)</th>
+</tr> <tr>
+	<td style="text-align: right;">Inverter</td><td><input type="checkbox" id="cb_i_cI" onclick='cbUpdate(this);'></td>
+</tr>
+<th colspan="4">Frequency (Hz)</th>
+</tr> <tr>
+	<td style="text-align: right;">Feed</td><td><input type="checkbox" id="cb_i_ff" onclick='cbUpdate(this);'></td>
+</tr>
+
+</table>
+</div>
+<div id="ctr_day">
+
+<table style="width:100%">
+
+<th colspan="4">Energy (Wh)</th>
+<tr>
+	<td style="text-align: right;">Day</td><td><input type="checkbox" id="cb_d_enD" onclick='cbUpdate(this);'></td>
+	<td style="text-align: right;">Produced</td><td><input type="checkbox" id="cb_d_enP" onclick='cbUpdate(this);'></td>
+</tr> <tr>
+	<td style="text-align: right;">Imported </td><td><input type="checkbox" id="cb_d_enI" onclick='cbUpdate(this);'></td>
+	<td style="text-align: right;">Exported </td><td><input type="checkbox" id="cb_d_enE" onclick='cbUpdate(this);'></td>
+</tr>
+
+<th colspan="4">Production Time (UTC)</th>
+<tr>
+	<td style="text-align: right;">Start</td><td><input type="checkbox" id="cb_d_tiS" onclick='cbUpdate(this);'></td>
+	<td style="text-align: right;">End</td><td><input type="checkbox" id="cb_d_tiE" onclick='cbUpdate(this);'></td>
+</tr>
+<th colspan="4">Time (s)</th>
+<tr>
+	<td style="text-align: right;">Production</td><td><input type="checkbox" id="cb_d_tiP" onclick='cbUpdate(this);'></td>
+</tr>
+
+<th colspan="4">Power (W)</th>
+<tr>
+	<td style="text-align: right;">Daily Max</td><td><input type="checkbox" id="cb_d_pmax" onclick='cbUpdate(this);'></td>
+</tr>
+
+<th colspan="4">Percentage</th>
+<tr>
+	<td style="text-align: center;" colspan="4">Exported of production <input type="checkbox" id="cb_d_peE" onclick='cbUpdate(this);'></td>
+</tr>
+
+</table>
+</div>
+
+<div style="text-align: center; padding-top: 30px;">
+<input  type="button" onclick='downloadCSV();' value="Download Shown Data" />
+</div>
+</div>
+
+<script>
+
+
+var ctrPrdFmt = document.getElementById('periodFormatCell');
+ctrPrdFmt.onmouseover = function() {
+  document.getElementById('tblTimePeriodFmtHover').style.display = 'table-row';
+}
+ctrPrdFmt.onmouseout = function() {
+  document.getElementById('tblTimePeriodFmtHover').style.display = 'none';
+}
+
+
+
+var ctrStFmt = document.getElementById('startFormatCell');
+ctrStFmt.onmouseover = function() {
+  document.getElementById('tblTimeStartFmtHover').style.display = 'table-row';
+}
+ctrStFmt.onmouseout = function() {
+  document.getElementById('tblTimeStartFmtHover').style.display = 'none';
+}
+
+
+
+/* Elements (divs) */
+plotEle = document.getElementById('tester');
+ctrDayEle = document.getElementById('ctr_day');
+ctrIntEle = document.getElementById('ctr_int');
+/* Drop Down Menu Options */
+ctrType = document.getElementById('dataTypeList');
+ctrView = document.getElementById('dataViewList');
+/* Time Control */
+cb_c_update = document.getElementById('cbUpdate');
+tbl_c_start = document.getElementById('tblTimeStart');
+tbl_c_startFmt = document.getElementById('tblTimeStartFmt');
+tbl_c_PeriodFmt = document.getElementById('tblTimePeriodFmt');
+
+txt_c_period = document.getElementById('txtTimePeriod');
+
+/* Checkboxes */
+// Power (I)
+cb_i_pwF = document.getElementById('cb_i_pwF');
+cb_i_pwP = document.getElementById('cb_i_pwP');
+cb_i_pwU = document.getElementById('cb_i_pwU');
+// PF (I)
+cb_i_pfF = document.getElementById('cb_i_pfF');
+cb_i_pfI = document.getElementById('cb_i_pfI');
+// Eng (I)
+cb_i_enP = document.getElementById('cb_i_enP');
+cb_i_enI = document.getElementById('cb_i_enI');
+cb_i_enE = document.getElementById('cb_i_enE');
+// Voltages (I)
+cb_i_vs1 = document.getElementById('cb_i_vs1');
+cb_i_vs2 = document.getElementById('cb_i_vs2');
+cb_i_vF = document.getElementById('cb_i_vF');
+// Curent (I)
+cb_i_cI = document.getElementById('cb_i_cI');
+// Frequency (Hz)
+cb_i_ff = document.getElementById('cb_i_ff');
+
+// Eng (D)
+cb_d_enD = document.getElementById('cb_d_enD');
+cb_d_enP = document.getElementById('cb_d_enP');
+cb_d_enI = document.getElementById('cb_d_enI');
+cb_d_enE = document.getElementById('cb_d_enE');
+// Time (D)
+cb_d_tiS = document.getElementById('cb_d_tiS');
+cb_d_tiE = document.getElementById('cb_d_tiE');
+cb_d_tiP = document.getElementById('cb_d_tiP');
+// Power (D)
+cb_d_pmax = document.getElementById('cb_d_pmax');
+// Percentage (D)
+cb_d_peE = document.getElementById('cb_d_peE');
+
+
+
+var int_pow_p_trace;
+var trace2;
+var int_use_trace;
+var plotdata;
+var initialisedView = 0;
+
+
+
+var baseURL = "getData.php?";
+var url = baseURL;
+
+var viewerDefaults = {
+		i_time_p: 4320,
+		d_time_p: 100,
+		i_time_st: '', // Blank indicates use current time and minus period
+		d_time_st: '',
+}
+
+var timeP = {
+		i_year: 0,
+		i_month: 0,
+		i_day: 3,
+		i_hour: 0,
+		i_minute: 0,
+		d_year: 1,
+		d_month: 0,
+		d_day: 0,
+		d_hour: 0,
+		d_minute: 0,
+		combined: "",
+	}
+
+
+var viewerConfig = {
+		type: 'int',
+		i_time_p: '',
+		d_time_p: '',
+		i_time_st: '',
+		d_time_st: '',
+		view: 'stacked',
+		live_update: true,
+		i_pow_f: true,
+		i_pow_p: true,
+		i_use: true,
+		i_pf_f: false,
+		i_pf_p: false,
+		i_eng_tot_prod: false,
+		i_eng_tot_out: false,
+		i_eng_tot_in: false,
+		i_volt_feed: false,
+		i_cur_inv: false,
+		i_freq_feed: false,
+		i_dc_s1_v: false,
+		i_dc_s2_v: false,
+		d_rise_time: false,
+		d_fall_time: false,
+		d_prod_time: true,
+		d_perc_exp: true,
+		d_pow_max: false,
+		d_eng_day: true,
+		d_eng_tot_prod: false,
+		d_eng_tot_out: false,
+		d_eng_tot_in: false
+}
+
+
+
+function getCol(matrix, col){
+       var column = [];
+       for(var i=0; i<matrix.length; i++){
+          column.push(matrix[i][col]);
+       }
+       return column;
+}
+
+
+function parseData(callBack) {
+	validateControl();
+	url = baseURL;
+	if ('int'.localeCompare(viewerConfig.type) == 0) { 
+		url = url+'t=int&d=';
+		if (viewerConfig.i_pow_f==true) { url = url+'pow_f,'; }
+		if (viewerConfig.i_pow_p==true) { url = url+'pow_p,'; }
+		if (viewerConfig.i_use==true) { url = url+'use,'; }
+		if (viewerConfig.i_pf_f==true) { url = url+'pf_f,'; }
+		if (viewerConfig.i_pf_p==true) { url = url+'pf_i,'; }
+		if (viewerConfig.i_volt_feed==true) { url = url+'volt_f,'; }
+		if (viewerConfig.i_dc_s1_v==true) { url = url+'dc1v,'; }
+		if (viewerConfig.i_dc_s2_v==true) { url = url+'dc2v,'; }
+		if (viewerConfig.i_cur_inv==true) { url = url+'cur_i,'; }
+		if (viewerConfig.i_freq_feed==true) { url = url+'freq_f,'; }
+		if (viewerConfig.i_eng_tot_prod==true) { url = url+'tot_prod,'; }
+		if (viewerConfig.i_eng_tot_out==true) { url = url+'tot_ex,'; }
+		if (viewerConfig.i_eng_tot_in==true) { url = url+'tot_im,'; }
+		url = url+'&tperiod='+viewerConfig.i_time_p;
+		//console.log("Interval Plot");
+	}
+	else {
+		url=url+'t=daily&d=';
+		if (viewerConfig.d_eng_day==true) { url = url+'day,'; }
+		if (viewerConfig.d_eng_tot_prod==true) { url = url+'tot_prod,'; }
+		if (viewerConfig.d_eng_tot_out==true) { url = url+'tot_ex,'; }
+		if (viewerConfig.d_eng_tot_in==true) { url = url+'tot_im,'; }
+		if (viewerConfig.d_perc_exp==true) { url = url+'exp_perc,'; }
+		if (viewerConfig.d_prod_time==true) { url = url+'prod_time,'; }
+		if (viewerConfig.d_rise_time==true) { url = url+'rise_time,'; }
+		if (viewerConfig.d_fall_time==true) { url = url+'fall_time,'; }
+		if (viewerConfig.d_pow_max==true) { url = url+'max,'; }
+		url = url+'&tperiod='+viewerConfig.d_time_p;
+	}
+
+	if (!(url.includes("http"))) {
+		url = window.location.href.substring(0,window.location.href.lastIndexOf("/") + 1)+url;
+		
+	//	url = new File([""], url);
+	//	console.log("We were told its not an external file")
+	//	console.log(url)
+	}
+	Papa.parse(url, {
+		download: true,
+		header: true,
+		complete: function(results) {
+			callBack(results.data);
+		}
+	});
+}
+function doStuff(data) {
+	timeArray =  getCol(data,'Time');
+	plotdata=[];
+	
+	var layout = {
+			autosize: true,
+			margin: {
+				    l: 80,
+				    r: 250,
+				    b: 60,
+				    t: 10,
+				    pad: 4
+			},
+			xaxis: {
+			    type: "date"
+			},
+			yaxis: {},
+			legend: {"orientation":"h"}
+			};
+	
+	var int_pow_p_trace = {};
+	var int_pow_f_trace = {};
+	var int_use_trace = {};
+	var int_pfFeed_trace = {};
+	var int_pfInv_trace = {};
+	var int_curInvFeed_trace = {};
+	var int_voltFeed_trace = {};
+	var int_voltS1_trace = {};
+	var int_voltS2_trace = {};
+	var int_engProdFeed_trace = {};
+	var int_engExpFeed_trace = {};
+	var int_engImpFeed_trace = {};
+	var int_freqFeed_trace = {};
+	
+	var day_engDay_trace = {};
+	var day_engProdFeed_trace = {};
+	var day_engExpFeed_trace = {};
+	var day_engImpFeed_trace = {};
+	var day_expPerc_trace = {};
+	var day_timeProd_trace = {};
+	var day_timeRise_trace = {};
+	var day_timeFall_trace = {};
+	var day_powMax_trace = {};
+	
+	var numDataTypes = 1;
+	/* Periodic Data */
+	if ('int'.localeCompare(viewerConfig.type) == 0) {
+		// First Data type is Power (W)
+		if ((viewerConfig.i_pow_p==true) || (viewerConfig.i_pow_f==true) || (viewerConfig.i_use==true)) {
+			if (viewerConfig.i_pow_p==true) {
+				var i_powPArray =  getCol(data,'Power Produced (W)');
+				int_pow_p_trace = {
+					x: timeArray,
+					y: i_powPArray,
+					type: 'scatter',
+					name: 'Power Produced (W)',
+					yaxis: 'y1',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_pow_p_trace); }
+	
+			if (viewerConfig.i_pow_f==true) { 
+				var i_powFArray =  getCol(data,'Power at feed-in (W)');
+				int_pow_f_trace = {
+					x: timeArray,
+					y: i_powFArray,
+					type: 'scatter',
+					name: 'Power at feed-in (W)',
+					yaxis: 'y1',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_pow_f_trace); }
+	
+			if (viewerConfig.i_use==true) { 
+				var i_useArray =  getCol(data,'Usage (W)');
+				int_use_trace = {
+					x: timeArray,
+					y: i_useArray,
+					type: 'scatter',
+					name: 'Usage (W)',
+					yaxis: 'y1',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_use_trace); }
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Power (W)';
+			}
+			numDataTypes ++;
+		}
+		// Datatype Voltage (V)
+		if ((viewerConfig.i_volt_feed==true) || (viewerConfig.i_dc_s1_v==true) || (viewerConfig.i_dc_s2_v==true)) {
+			if (viewerConfig.i_volt_feed==true) {
+				var i_voltFeedArray =  getCol(data,'Voltage at Feed-in (V)');
+				int_voltFeed_trace = {
+					x: timeArray,
+					y: i_voltFeedArray,
+					type: 'scatter',
+					name: 'Voltage at Feed-in (V)',
+					hoverinfo: 'x+y+text',
+				};
+				plotdata.push(int_voltFeed_trace); }
+			if (viewerConfig.i_dc_s1_v==true) {
+				var i_voltString1 =  getCol(data,'DC string 1 voltage (V)');
+				int_voltS1_trace = {
+					x: timeArray,
+					y: i_voltString1,
+					type: 'scatter',
+					name: 'DC string 1 voltage (V)',
+					hoverinfo: 'x+y+text',
+				};
+				plotdata.push(int_voltS1_trace); }
+			if (viewerConfig.i_dc_s2_v==true) {
+				var i_voltString2 =  getCol(data,'DC string 2 voltage (V)');
+				int_voltS2_trace = {
+					x: timeArray,
+					y: i_voltString2,
+					type: 'scatter',
+					name: 'DC string 2 voltage (V)',
+					hoverinfo: 'x+y+text',
+				};
+				plotdata.push(int_voltS2_trace); }		
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Voltage (V)';
+			}
+			else {
+				layout.yaxis2={title: 'Voltage (V)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_volt_feed==true)) { int_voltFeed_trace.xaxis = 'x2';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_dc_s1_v==true)) { int_voltS1_trace.xaxis = 'x2';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_dc_s2_v==true)) { int_voltS2_trace.xaxis = 'x2';}
+				int_voltFeed_trace.yaxis = 'y2';
+				int_voltS1_trace.yaxis = 'y2';
+				int_voltS2_trace.yaxis = 'y2';
+			}
+			numDataTypes ++;
+		}
+		// Datatype Power Factor
+		if ((viewerConfig.i_pf_f==true) || (viewerConfig.i_pf_p==true)) {
+			if (viewerConfig.i_pf_f==true) {
+				var i_pfFeedArray =  getCol(data,'Power Factor at feed-in');
+				int_pfFeed_trace = {
+					x: timeArray,
+					y: i_pfFeedArray,
+					type: 'scatter',
+					name: 'Power Factor at feed (deg)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_pfFeed_trace); }
+			if (viewerConfig.i_pf_p==true) {
+				var i_pfInverterArray =  getCol(data,'Power Factor at inverter');
+				int_pfInv_trace = {
+					x: timeArray,
+					y: i_pfInverterArray,
+					type: 'scatter',
+					name: 'Power Factor at inverter (deg)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_pfInv_trace); }
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Power Factor (deg)';
+				int_pfFeed_trace.yaxis = 'y1';
+				layout.annotations = [
+				{xref: 'paper', yref: 'y1', text: '<b>Capacitive (leading)</b>', showarrow: false, y: 100 ,yanchor: 'top' },
+				{xref: 'paper', yref: 'y1', text:  '<b>Inductive (lagging)</b>', showarrow: false, y: -100,  yanchor: 'bottom' }
+				]
+			}
+			else if (numDataTypes == 2) {
+				layout.yaxis2={title: 'Power Factor (deg)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) {
+					layout.annotations = [
+					{xref: 'paper', yref: 'y2', text: '<b>Capacitive (leading)</b>', showarrow: false, y: 100, yanchor: 'top' },
+					{xref: 'paper', yref: 'y2', text:  '<b>Inductive (lagging)</b>', showarrow: false, y: -100, yanchor: 'bottom' }
+					]
+				}
+				else {
+					layout.annotations = [
+					{xref: 'paper', yref: 'y2', text: '<b>Capacitive (leading)</b>', showarrow: false, y: 100, yanchor: 'top' },
+					{xref: 'paper', yref: 'y2', text:  '<b>Inductive (lagging)</b>', showarrow: false, y: -100, yanchor: 'bottom' }
+					]
+				}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_pf_f==true)) { int_pfFeed_trace.xaxis = 'x2';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_pf_p==true)) { int_pfInv_trace.xaxis = 'x2';}
+				int_pfFeed_trace.yaxis = 'y2';
+				int_pfInv_trace.yaxis = 'y2';
+			}
+			else {
+				layout.yaxis3={title: 'Power Factor (deg)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) {
+					layout.annotations = [
+					{xref: 'paper', yref: 'y3', text: '<b>Capacitive (leading)</b>', showarrow: false, y: 100, yanchor: 'top' },
+					{xref: 'paper', yref: 'y3', text:  '<b>Inductive (lagging)</b>', showarrow: false, y: -100, yanchor: 'bottom' }
+					]
+				}
+				else {
+					layout.annotations = [
+					{xref: 'paper', yref: 'y3', text: '<b>Capacitive (leading)</b>', showarrow: false, y: 100, yanchor: 'top' },
+					{xref: 'paper', yref: 'y3', text:  '<b>Inductive (lagging)</b>', showarrow: false, y: -100, yanchor: 'bottom' }
+					]
+				}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_pf_f==true)) { int_pfFeed_trace.xaxis = 'x3';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_pf_p==true)) { int_pfInv_trace.xaxis = 'x3';}
+				int_pfInv_trace.yaxis = 'y3';
+				int_pfFeed_trace.yaxis = 'y3';
+			}
+			numDataTypes ++;
+		}
+
+		// Datatype Current (A)
+		if ((viewerConfig.i_cur_inv==true)) {
+			if (viewerConfig.i_cur_inv==true) {
+				var i_curInvArray =  getCol(data,'Current outputted by inverter (A)');
+				int_curInvFeed_trace = {
+					x: timeArray,
+					y: i_curInvArray,
+					type: 'scatter',
+					name: 'Current from inverter (A)',
+					hoverinfo: 'x+y+text',
+					//line: {width: 1}
+				};
+				plotdata.push(int_curInvFeed_trace); }
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Current (A)';
+				int_curInvFeed_trace.yaxis = 'y1';
+			}
+			else if (numDataTypes == 2) {
+				layout.yaxis2={title: 'Current (A)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { int_curInvFeed_trace.xaxis = 'x2'; }
+				int_curInvFeed_trace.yaxis = 'y2';
+			}
+			else if (numDataTypes == 3) {
+				layout.yaxis3={title: 'Current (A)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { int_curInvFeed_trace.xaxis = 'x3'; }
+				int_curInvFeed_trace.yaxis = 'y3';
+			}
+			else {
+				layout.yaxis4={title: 'Current (A)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { int_curInvFeed_trace.xaxis = 'x4'; }
+				int_curInvFeed_trace.yaxis = 'y4';
+			}
+			numDataTypes ++;
+		}
+		// Datatype Energy (Wh)
+		if ((viewerConfig.i_eng_tot_prod==true) || (viewerConfig.i_eng_tot_out==true) || (viewerConfig.i_eng_tot_in==true)) {
+			if (viewerConfig.i_eng_tot_prod==true) {
+				var i_engProdArray =  getCol(data,'Total Produced (Wh)');
+				int_engProdFeed_trace = {
+					x: timeArray,
+					y: i_engProdArray,
+					type: 'scatter',
+					name: 'Total Produced (Wh)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_engProdFeed_trace); }
+			if (viewerConfig.i_eng_tot_out==true) {
+				var i_engExpArray =  getCol(data,'Total Exported (Wh)');
+				int_engExpFeed_trace = {
+					x: timeArray,
+					y: i_engExpArray,
+					type: 'scatter',
+					name: 'Total Exported (Wh)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_engExpFeed_trace); }
+			if (viewerConfig.i_eng_tot_in==true) {
+				var i_engImpArray =  getCol(data,'Total Imported (Wh)');
+				int_engImpFeed_trace = {
+					x: timeArray,
+					y: i_engImpArray,
+					type: 'scatter',
+					name: 'Total Imported (Wh)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_engImpFeed_trace); }			
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Energy (Wh)';
+				int_curInvFeed_trace.yaxis = 'y1';
+			}
+			else if (numDataTypes == 2) {
+				layout.yaxis2={title: 'Energy (Wh)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_prod==true)) { int_engProdFeed_trace.xaxis = 'x2';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_out==true)) { int_engExpFeed_trace.xaxis = 'x2';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_in==true)) { int_engImpFeed_trace.xaxis = 'x2';}
+				int_engProdFeed_trace.yaxis = 'y2';
+				int_engExpFeed_trace.yaxis = 'y2';
+				int_engImpFeed_trace.yaxis = 'y2';
+			}
+			else if (numDataTypes == 3) {
+				layout.yaxis3={title: 'Energy (Wh)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_prod==true)) { int_engProdFeed_trace.xaxis = 'x3';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_out==true)) { int_engExpFeed_trace.xaxis = 'x3';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_in==true)) { int_engImpFeed_trace.xaxis = 'x3';}
+				int_engProdFeed_trace.yaxis = 'y3';
+				int_engExpFeed_trace.yaxis = 'y3';
+				int_engImpFeed_trace.yaxis = 'y3';
+			}
+			else if (numDataTypes == 4) {
+				layout.yaxis4={title: 'Energy (Wh)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_prod==true)) { int_engProdFeed_trace.xaxis = 'x4';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_out==true)) { int_engExpFeed_trace.xaxis = 'x4';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_in==true)) { int_engImpFeed_trace.xaxis = 'x4';}
+				int_engProdFeed_trace.yaxis = 'y4';
+				int_engExpFeed_trace.yaxis = 'y4';
+				int_engImpFeed_trace.yaxis = 'y4';
+			}
+			else {
+				layout.yaxis5={title: 'Energy (Wh)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_prod==true)) { int_engProdFeed_trace.xaxis = 'x5';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_out==true)) { int_engExpFeed_trace.xaxis = 'x5';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_eng_tot_in==true)) { int_engImpFeed_trace.xaxis = 'x5';}
+				int_engProdFeed_trace.yaxis = 'y5';
+				int_engExpFeed_trace.yaxis = 'y5';
+				int_engImpFeed_trace.yaxis = 'y5';
+			}
+			numDataTypes ++;
+		}
+		// Frequency (Hz)
+		if ((viewerConfig.i_freq_feed==true)) {
+			if (viewerConfig.i_freq_feed==true) {
+				var i_freqFeedArray = getCol(data,'Frequency at Feed (Hz)');
+				int_freqFeed_trace = {
+					x: timeArray,
+					y: i_freqFeedArray,
+					type: 'scatter',
+					name: 'Frequency at Feed (Hz)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(int_freqFeed_trace); }			
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Frequency (Hz)';
+				int_freqFeed_trace.yaxis = 'y1';
+			}
+			else if (numDataTypes == 2) {
+				layout.yaxis2={title: 'Frequency (Hz)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_freq_feed==true)) { int_freqFeed_trace.xaxis = 'x2';}
+				int_freqFeed_trace.yaxis = 'y2';
+			}
+			else if (numDataTypes == 3) {
+				layout.yaxis3={title: 'Frequency (Hz)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_freq_feed==true)) { int_freqFeed_trace.xaxis = 'x3';}
+				int_freqFeed_trace.yaxis = 'y3';
+			}
+			else if (numDataTypes == 4) {
+				layout.yaxis4={title: 'Frequency (Hz)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_freq_feed==true)) { int_freqFeed_trace.xaxis = 'x4';}
+				int_freqFeed_trace.yaxis = 'y4';
+			}
+			else {
+				layout.yaxis5={title: 'Frequency (Hz)'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.i_freq_feed==true)) { int_freqFeed_trace.xaxis = 'x5';}
+				int_freqFeed_trace.yaxis = 'y5';
+			}
+			numDataTypes ++;
+		}
+		
+	}
+	/* Daily Data */
+	else {
+		// Energy Datatype (Wh)
+		if ((viewerConfig.d_eng_day==true) || (viewerConfig.d_eng_tot_prod==true) || (viewerConfig.d_eng_tot_out==true) || (viewerConfig.d_eng_tot_in==true)) {
+			if (viewerConfig.d_eng_day==true) {
+				var d_engDayArray =  getCol(data,'Daily Energy Produced (Wh)');
+				day_engDay_trace = {
+					x: timeArray,
+					y: d_engDayArray,
+					type: 'scatter',
+					name: 'Daily Energy Produced (Wh)',
+					yaxis: 'y1',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_engDay_trace); }
+			if (viewerConfig.d_eng_tot_prod==true) {
+				var d_engProdArray =  getCol(data,'Total Produced (Wh)');
+				day_engProdFeed_trace = {
+					x: timeArray,
+					y: d_engProdArray,
+					type: 'scatter',
+					name: 'Total Produced (Wh)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_engProdFeed_trace); }
+			if (viewerConfig.d_eng_tot_out==true) {
+				var d_engExpArray =  getCol(data,'Total Exported (Wh)');
+				day_engExpFeed_trace = {
+					x: timeArray,
+					y: d_engExpArray,
+					type: 'scatter',
+					name: 'Total Exported (Wh)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_engExpFeed_trace); }
+			if (viewerConfig.d_eng_tot_in==true) {
+				var d_engImpArray =  getCol(data,'Total Imported (Wh)');
+				day_engImpFeed_trace = {
+					x: timeArray,
+					y: d_engImpArray,
+					type: 'scatter',
+					name: 'Total Imported (Wh)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_engImpFeed_trace); }			
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Energy (Wh)';
+			}
+			numDataTypes ++;
+		}
+		// Percentage Datatype
+		if (viewerConfig.d_perc_exp==true) {
+			if (viewerConfig.d_perc_exp==true) {
+				var d_expPercArray =  getCol(data,'Export Percentage');
+				day_expPerc_trace = {
+					x: timeArray,
+					y: d_expPercArray,
+					type: 'scatter',
+					name: 'Export Percentage',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_expPerc_trace); }
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Percentage';
+			}
+			else {
+				layout.yaxis2={title: 'Percentage'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { day_expPerc_trace.xaxis = 'x2'; }
+				day_expPerc_trace.yaxis = 'y2';
+			}
+			numDataTypes ++;
+		}
+		// Time Datatype (s)
+		if (viewerConfig.d_prod_time==true) {
+			if (viewerConfig.d_prod_time==true) {
+				var d_timeProdArray =  getCol(data,'Production time (s)');
+				day_timeProd_trace = {
+					x: timeArray,
+					y: d_timeProdArray,
+					type: 'scatter',
+					name: 'Production time (s)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_timeProd_trace); }
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Time (s)';
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { day_timeProd_trace.xaxis = 'x1'; }
+				day_timeProd_trace.yaxis = 'y1';
+			}
+			else if (numDataTypes == 2) {
+				layout.yaxis2={title: 'Time (s)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { day_timeProd_trace.xaxis = 'x2'; }
+				day_timeProd_trace.yaxis = 'y2';
+			}
+			else {
+				layout.yaxis3={title: 'Time (s)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { day_timeProd_trace.xaxis = 'x3'; }
+				day_timeProd_trace.yaxis = 'y3';
+			}
+			numDataTypes ++;
+		}
+		
+		// Power Datatype (W)
+		if (viewerConfig.d_pow_max==true) {
+			if (viewerConfig.d_pow_max==true) {
+				var d_powMaxArray =  getCol(data,'Daily Max (W)');
+				day_powMax_trace = {
+					x: timeArray,
+					y: d_powMaxArray,
+					type: 'scatter',
+					name: 'Daily Max (W)',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_powMax_trace); }
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Power (W)';
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { day_powMax_trace.xaxis = 'x1'; }
+				day_powMax_trace.yaxis = 'y1';
+			}
+			else if (numDataTypes == 2) {
+				layout.yaxis2={title: 'Power (W)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { day_powMax_trace.xaxis = 'x2'; }
+				day_powMax_trace.yaxis = 'y2';
+			}
+			else if (numDataTypes == 3) {
+				layout.yaxis3={title: 'Power (W)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { day_powMax_trace.xaxis = 'x3'; }
+				day_powMax_trace.yaxis = 'y3';
+			}
+			else {
+				layout.yaxis4={title: 'Power (W)'};
+				if ('stacked'.localeCompare(viewerConfig.view) == 0) { day_powMax_trace.xaxis = 'x4'; }
+				day_powMax_trace.yaxis = 'y4';
+			}
+			numDataTypes ++;
+		}
+		
+		// Production Times
+		if ((viewerConfig.d_rise_time==true) || (viewerConfig.d_fall_time==true)) {
+			if (viewerConfig.d_rise_time==true) {
+				var d_timeRiseArray =  getCol(data,'Rise Time');
+				day_timeRise_trace = {
+					x: timeArray,
+					y: d_timeRiseArray,
+					type: 'scatter',
+					name: 'Rise Time',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_timeRise_trace); }
+
+			if (viewerConfig.d_fall_time==true) {
+				var d_timeFallArray =  getCol(data,'Fall time');
+				day_timeFall_trace = {
+					x: timeArray,
+					y: d_timeFallArray,
+					type: 'scatter',
+					name: 'Fall time',
+					hoverinfo: 'x+y+text'
+				};
+				plotdata.push(day_timeFall_trace); }
+			if (numDataTypes == 1) {
+				layout.yaxis.title='Time';
+				int_curInvFeed_trace.yaxis = 'y1';
+			}
+			else if (numDataTypes == 2) {
+				layout.yaxis2={title: 'Time'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.d_rise_time==true)) { day_timeRise_trace.xaxis = 'x2';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.d_fall_time==true)) { day_timeFall_trace.xaxis = 'x2';}
+				day_timeRise_trace.yaxis = 'y2';
+				day_timeFall_trace.yaxis = 'y2';
+			}
+			else if (numDataTypes == 3) {
+				layout.yaxis3={title: 'Time'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.d_rise_time==true)) { day_timeRise_trace.xaxis = 'x3';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.d_fall_time==true)) { day_timeFall_trace.xaxis = 'x3';}
+				day_timeRise_trace.yaxis = 'y3';
+				day_timeFall_trace.yaxis = 'y3';
+			}
+			else if (numDataTypes == 4) {
+				layout.yaxis4={title: 'Time'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.d_rise_time==true)) { day_timeRise_trace.xaxis = 'x4';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.d_fall_time==true)) { day_timeFall_trace.xaxis = 'x4';}
+				day_timeRise_trace.yaxis = 'y4';
+				day_timeFall_trace.yaxis = 'y4';
+			}
+			else {
+				layout.yaxis5={title: 'Time'};
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.d_rise_time==true)) { day_timeRise_trace.xaxis = 'x5';}
+				if (('stacked'.localeCompare(viewerConfig.view) == 0) && (viewerConfig.d_fall_time==true)) { day_timeFall_trace.xaxis = 'x5';}
+				day_timeRise_trace.yaxis = 'y5';
+				day_timeFall_trace.yaxis = 'y5';
+			}
+			numDataTypes ++;
+		}
+		
+	}
+	
+	/* View Styles */
+	// Stacked
+	if ('stacked'.localeCompare(viewerConfig.view) == 0) {
+		if ((numDataTypes-1) == 1){
+			layout.yaxis.domain=[0,1];
+			layout.xaxis={title: 'Time'};
+		}
+		if ((numDataTypes-1) == 2){
+			layout.yaxis.domain=[0.52,1];
+			layout.yaxis2.domain=[0,0.48];
+			layout.xaxis={showticklabels: false};
+			layout.xaxis2={showticklabels: true, title: 'Time', anchor: 'y2'};
+		}
+		else if ((numDataTypes-1) == 3){
+			layout.yaxis.domain=[0.68,1];
+			layout.yaxis2.domain=[0.35,0.64];
+			layout.yaxis3.domain=[0,0.31];
+			layout.xaxis={showticklabels: false};
+			layout.xaxis2={showticklabels: false, anchor: 'y2'};
+			layout.xaxis3={showticklabels: true, title: 'Time', anchor: 'y3'};
+		}
+		else if ((numDataTypes-1) == 4){
+			layout.yaxis.domain=[0.76,1];
+			layout.yaxis2.domain=[0.51,0.74];
+			layout.yaxis3.domain=[0.26,0.49];
+			layout.yaxis4.domain=[0,0.24];
+			layout.xaxis={showticklabels: false};
+			layout.xaxis2={showticklabels: false, anchor: 'y2'};
+			layout.xaxis3={showticklabels: false, anchor: 'y3'};
+			layout.xaxis4={showticklabels: true, title: 'Time', anchor: 'y4'};
+		}
+		else if ((numDataTypes-1) == 5){
+			layout.yaxis.domain=[0.81,1];
+			layout.yaxis2.domain=[0.61,0.79];
+			layout.yaxis3.domain=[0.41,0.59];
+			layout.yaxis4.domain=[0.21,0.39];
+			layout.yaxis5.domain=[0,0.19];
+			layout.xaxis={showticklabels: false};
+			layout.xaxis2={showticklabels: false, anchor: 'y2'};
+			layout.xaxis3={showticklabels: false, anchor: 'y3'};
+			layout.xaxis4={showticklabels: false, anchor: 'y4'};
+			layout.xaxis5={showticklabels: true, title: 'Time', anchor: 'y5'};
+		}
+		else if ((numDataTypes-1) == 6){
+			layout.yaxis.domain=[0.85,1];
+			layout.yaxis2.domain=[0.68,0.84];
+			layout.yaxis3.domain=[0.51,0.67];
+			layout.yaxis4.domain=[0.34,0.5];
+			layout.yaxis5.domain=[0.17,0.33];
+			layout.yaxis6.domain=[0,0.16];
+			layout.xaxis={showticklabels: false};
+			layout.xaxis2={showticklabels: false, anchor: 'y2'};
+			layout.xaxis3={showticklabels: false, anchor: 'y3'};
+			layout.xaxis4={showticklabels: false, anchor: 'y4'};
+			layout.xaxis5={showticklabels: false, anchor: 'y5'};
+			layout.xaxis6={showticklabels: true, title: 'Time', anchor: 'y6'};
+		}
+	}
+	// Overlayed
+	else {
+		if ((numDataTypes-1) == 1){
+			layout.xaxis={title: 'Time'};
+		}
+		if ((numDataTypes-1) == 2){
+			layout.yaxis2.overlaying='y';
+			layout.xaxis={title: 'Time'};
+		}
+		else if ((numDataTypes-1) == 3){
+			layout.yaxis2.overlaying='y';
+			layout.yaxis3.overlaying='y';
+			layout.xaxis={title: 'Time'};
+		}
+		else if ((numDataTypes-1) == 4){
+			layout.yaxis2.overlaying='y';
+			layout.yaxis3.overlaying='y';
+			layout.yaxis4.overlaying='y';
+			layout.xaxis={title: 'Time'};
+		}
+		else if ((numDataTypes-1) == 5){
+			layout.yaxis2.overlaying='y';
+			layout.yaxis3.overlaying='y';
+			layout.yaxis4.overlaying='y';
+			layout.yaxis5.overlaying='y';
+			layout.xaxis={title: 'Time'};
+		}
+		else if ((numDataTypes-1) == 6){
+			layout.yaxis2.overlaying='y';
+			layout.yaxis3.overlaying='y';
+			layout.yaxis4.overlaying='y';
+			layout.yaxis5.overlaying='y';
+			layout.yaxis6.overlaying='y';
+			layout.xaxis={title: 'Time'};
+		}
+	}
+	if (initialisedView == 0) {
+		Plotly.plot( plotEle, plotdata, layout, {displayModeBar: true, showLink: false, displaylogo: false, modeBarButtonsToRemove: ['sendDataToCloud'],scrollZoom: true});
+		initialisedView = 1;
+	} else {
+		// redraw doesn't seem to work, so use newPlot instead
+		// NewPlot also solves the problem with window size changes!!!!
+		Plotly.newPlot( plotEle, plotdata, layout, {displayModeBar: true, showLink: false, displaylogo: false, modeBarButtonsToRemove: ['sendDataToCloud'],scrollZoom: true});
+	}
+}
+
+
+function ctrInitalise() {
+	if (viewerConfig.live_update == true) { cb_c_update.setAttribute("checked","true"); tbl_c_start.setAttribute("style","display: none"); tbl_c_startFmt.setAttribute("style","display: none");} 
+	if (viewerConfig.i_pow_f == true) { cb_i_pwF.setAttribute("checked","true"); }
+	if (viewerConfig.i_pow_p == true) { cb_i_pwP.setAttribute("checked","true"); }
+	if (viewerConfig.i_use == true) { cb_i_pwU.setAttribute("checked","true"); }
+	if (viewerConfig.i_pf_f == true) { cb_i_pfF.setAttribute("checked","true"); }
+	if (viewerConfig.i_pf_p == true) { cb_i_pfI.setAttribute("checked","true"); }
+	if (viewerConfig.i_eng_tot_prod == true) { cb_i_enP.setAttribute("checked","true"); }
+	if (viewerConfig.i_eng_tot_out == true) { cb_i_enE.setAttribute("checked","true"); }
+	if (viewerConfig.i_eng_tot_in == true) { cb_i_enI.setAttribute("checked","true"); }
+	if (viewerConfig.i_volt_feed == true) { cb_i_vF.setAttribute("checked","true"); }
+	if (viewerConfig.i_cur_inv == true) { cb_i_cI.setAttribute("checked","true"); }
+	if (viewerConfig.i_dc_s1_v == true) { cb_i_vs1.setAttribute("checked","true"); }
+	if (viewerConfig.i_dc_s2_v == true) { cb_i_vs2.setAttribute("checked","true"); }
+	if (viewerConfig.i_freq_feed == true) { cb_i_ff.setAttribute("checked","true"); }
+
+	if (viewerConfig.d_rise_time == true) { cb_d_tiS.setAttribute("checked","true"); }
+	if (viewerConfig.d_fall_time == true) { cb_d_tiE.setAttribute("checked","true"); }
+	if (viewerConfig.d_prod_time == true) { cb_d_tiP.setAttribute("checked","true"); }
+	if (viewerConfig.d_perc_exp == true) { cb_d_peE.setAttribute("checked","true"); }
+	if (viewerConfig.d_pow_max == true) { cb_d_pmax.setAttribute("checked","true"); }
+	if (viewerConfig.d_eng_day == true) { cb_d_enD.setAttribute("checked","true"); }
+	if (viewerConfig.d_eng_tot_prod == true) { cb_d_enP.setAttribute("checked","true"); }
+	if (viewerConfig.d_eng_tot_out == true) { cb_d_enE.setAttribute("checked","true"); }
+	if (viewerConfig.d_eng_tot_in == true) { cb_d_enI.setAttribute("checked","true"); }
+	
+	if ('stacked'.localeCompare(viewerConfig.view)==0) {ctrView.value="stack";}
+	if ('overlayed'.localeCompare(viewerConfig.view)==0) {ctrView.value="over";}
+	
+	initTime(false);
+
+}
+
+ctrInitalise();
+parseData(doStuff);
+
+
+
+
+
+/*
+var layoutStateChange = false; 
+$(document).on('plotly_relayout', function(eventdata){  
+    //alert( 'ZOOM!' + '\n\n' +
+    //    'x-axis start:' + plotEle.layout.xaxis.range[0] + '\n' +
+    //    'x-axis end:' + plotEle.layout.xaxis.range[1] );
+    //plotEle.layout.xaxis2.range[0]=plotEle.layout.xaxis.range[0];
+    //plotEle.layout.xaxis2.range[1]=plotEle.layout.xaxis.range[1];
+    var update = {
+    		//xaxis2: {range: [plotEle.layout.xaxis.range[0],plotEle.layout.xaxis.range[1]] }
+			//xaxis: {range: [plotEle.layout.xaxis2.range[0],plotEle.layout.xaxis2.range[1]] }
+		//xaxis2: {range: [1489108200,1489194660] }
+    }
+//    console.log(update);
+    if (layoutStateChange == false) {
+    	Plotly.relayout(plotEle, update);
+    	layoutStateChange = true;
+    }
+    else {
+    	layoutStateChange = false;
+    }
+    });
+*/
+
+
+function downloadCSV() {
+	url = url+'&exp=t';
+	window.location.href=url;
+}
+
+function isNumeric(n) {
+	return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+function initTime(setTimes) {
+	prdTimeStr = "";
+	prdTimeNumPer = 0;
+	prdTimeNumDay = 0;
+	if ('int'.localeCompare(viewerConfig.type) == 0) {
+		// Periodic/Interval Time
+		if (isNumeric(timeP.i_year) && (timeP.i_year != 0)) 	{prdTimeStr=prdTimeStr+timeP.i_year+"Y";	prdTimeNumPer+=timeP.i_year*525600;}
+		if (isNumeric(timeP.i_month) && (timeP.i_month != 0)) 	{prdTimeStr=prdTimeStr+timeP.i_month+"M";	prdTimeNumPer+=timeP.i_month*43800;}
+		if (isNumeric(timeP.i_day) && (timeP.i_day != 0)) 		{prdTimeStr=prdTimeStr+timeP.i_day+"D";	prdTimeNumPer+=timeP.i_day*1440;}
+		if (isNumeric(timeP.i_hour) && (timeP.i_hour != 0)) 	{prdTimeStr=prdTimeStr+timeP.i_hour+"h";	prdTimeNumPer+=timeP.i_hour*60; }
+		if (isNumeric(timeP.i_minute) && (timeP.i_minute != 0)) {prdTimeStr=prdTimeStr+timeP.i_minute+"m";prdTimeNumPer+=timeP.i_minute;}
+		if (isNumeric(prdTimeNumPer) && (prdTimeNumPer != 0)) {viewerConfig.i_time_p = prdTimeNumPer; }
+		else if (isNumeric(viewerConfig.i_time_p) && (viewerConfig.i_time_p != 0)) {}
+		else {viewerConfig.i_time_p=viewerDefaults.i_time_p; }
+	}
+	if ('day'.localeCompare(viewerConfig.type) == 0) {
+		// Daily Time
+		if (isNumeric(timeP.d_year) && (timeP.d_year != 0)) 	{prdTimeStr=prdTimeStr+timeP.d_year+"Y";	prdTimeNumDay+=timeP.d_year*365;}
+		if (isNumeric(timeP.d_month) && (timeP.d_month != 0)) 	{prdTimeStr=prdTimeStr+timeP.d_month+"M";	prdTimeNumDay+=timeP.d_month*30;}
+		if (isNumeric(timeP.d_day) && (timeP.d_day != 0)) 		{prdTimeStr=prdTimeStr+timeP.d_day+"D";		prdTimeNumDay+=timeP.d_day;}
+		if (isNumeric(prdTimeNumDay) && (prdTimeNumDay != 0)) {viewerConfig.d_time_p = prdTimeNumDay; }
+		else if (isNumeric(viewerConfig.d_time_p) && (viewerConfig.d_time_p != 0)) {}
+		else {viewerConfig.d_time_p=viewerDefaults.d_time_p; }
+	}
+	// Show the default
+	if ((initialisedView==0)||(setTimes==true)) {
+		txt_c_period.value=prdTimeStr;
+		// initialisedView = 1; // Not used, set on first plot
+	}
+	else {
+		parseData(doStuff);
+	}
+}
+
+function validateTime() {
+	
+	var periodStr=txt_c_period.value;
+	//var testAlertStr = "Found: ";
+	var Pindex= {
+			Yind: -1,
+			Mind: -1,
+			Dind: -1,
+			hind: -1,
+			mind: -1,
+	}
+	var Pval= {
+			year: -1,
+			month: -1,
+			day: -1,
+			hour: -1,
+			minute: -1,
+	}
+	Pindex.Yind = periodStr.indexOf("Y");
+	Pindex.Mind = periodStr.indexOf("M");
+	Pindex.Dind = periodStr.indexOf("D");
+	Pindex.hind = periodStr.indexOf("h");
+	Pindex.mind = periodStr.indexOf("m");
+	var i = 0;
+	if (Pindex.Yind != -1) {
+		//testAlertStr+=("Year ("+Pindex.Yind+"), ");
+		for(i=Pindex.Yind;isNumeric(i) && i >= 0;i--);
+		Pval.year=parseInt(periodStr.substring(i, Pindex.Yind));
+	} else {Pval.year=0;} 
+
+	if (Pindex.Mind != -1) {
+		//testAlertStr+=("Month ("+Pindex.Mind+"), ");
+		for(i=Pindex.Mind;isNumeric(i) && i >= 0;i--);
+		Pval.month=parseInt(periodStr.substring(i, Pindex.Mind));
+	}else {Pval.month=0;}
+	
+	if (Pindex.Dind != -1) {
+		//testAlertStr+=("Day ("+Pindex.Dind+"), ");
+		for(i=Pindex.Dind;isNumeric(i) && i >= 0;i--);
+		Pval.day=parseInt(periodStr.substring(i, Pindex.Dind));
+	}else {Pval.day=0;}
+	
+	if (Pindex.hind != -1) {
+		//testAlertStr+=("Hour ("+Pindex.hind+"), ");
+		for(i=Pindex.hind;isNumeric(i) && i >= 0;i--);
+		Pval.hour=parseInt(periodStr.substring(i, Pindex.hind));
+	}else {Pval.hour=0;}
+	
+	if (Pindex.mind != -1) {
+		//testAlertStr+=("Minute ("+Pindex.mind+"), ");
+		for(i=Pindex.mind;isNumeric(i) && i >= 0;i--);
+		Pval.minute=parseInt(periodStr.substring(i, Pindex.mind));
+	}else {Pval.minute=0;}
+	
+
+	if ('int'.localeCompare(viewerConfig.type) == 0) {
+		timeP.i_year=Pval.year;
+		timeP.i_month=Pval.month;
+		timeP.i_day=Pval.day;
+		timeP.i_hour=Pval.hour;
+		timeP.i_minute=Pval.minute;
+	}
+	else if ('day'.localeCompare(viewerConfig.type) == 0) {
+		timeP.d_year=Pval.year;
+		timeP.d_month=Pval.month;
+		timeP.d_day=Pval.day;
+	}
+	
+	//console.log("TestString".substring(1, 4));
+	
+	initTime(false);
+	//alert("You inputted: "+txt_c_period.value+"\nCalculated Time is: "+timeP.combined+"\n"+testAlertStr);
+	
+}
+
+var auto_refresh = setInterval(
+		function ()
+		{
+			if (viewerConfig.live_update==true) { parseData(doStuff); }
+
+}, 100000);
+
+window.onresize = function(event) {
+	parseData(doStuff);
+};
+
+
+function controlPane() {
+
+	if (cb_c_update.checked) { 
+		tbl_c_start.setAttribute("style","display: none");
+		tbl_c_startFmt.setAttribute("style","display: none");
+		viewerConfig.live_update=true; 
+
+		txt_c_period.value=prdTimeStr;
+	} 
+	else {
+		tbl_c_start.setAttribute("style","display: ");
+		tbl_c_startFmt.setAttribute("style","display: ");
+		viewerConfig.live_update=false;
+
+		txt_c_period.value=prdTimeStr;
+	}
+
+	if ('int'.localeCompare(ctrType.value)==0) {
+		viewerConfig.type='int';
+	}
+	else {
+		viewerConfig.type='day';
+	}
+	initTime(true);
+	validateControl();
+	parseData(doStuff);
+}
+
+
+function validateControl() {
+	//if ('day'.localeCompare(viewerConfig.type)==0) {
+	//if (ctrTypeDaily.selected == true) {
+	
+	if ('day'.localeCompare(ctrType.value)==0) {
+		ctrIntEle.setAttribute("style","display: none");
+		ctrDayEle.setAttribute("style","display: initial");
+
+	} else {
+		ctrDayEle.setAttribute("style","display: none");
+		ctrIntEle.setAttribute("style","display: initial");
+
+	}
+	if ('stack'.localeCompare(ctrView.value)==0) {
+		viewerConfig.view = 'stacked';
+	} else {
+		viewerConfig.view = 'overlayed';
+	}
+}
+
+function cbUpdate(cb) {
+	if ('int'.localeCompare(viewerConfig.type) == 0) {
+		if ('cb_i_pwF'.localeCompare(cb.id)==0) {
+			if (cb_i_pwF.checked) { viewerConfig.i_pow_f=true; } else { viewerConfig.i_pow_f=false; }
+		}
+		if ('cb_i_pwP'.localeCompare(cb.id)==0) {
+			if (cb_i_pwP.checked) { viewerConfig.i_pow_p=true; } else { viewerConfig.i_pow_p=false; }
+		}
+		if ('cb_i_pwU'.localeCompare(cb.id)==0) {
+			if (cb_i_pwU.checked) { viewerConfig.i_use=true; } else { viewerConfig.i_use=false; }
+		}
+		if ('cb_i_pfF'.localeCompare(cb.id)==0) {
+			if (cb_i_pfF.checked) { viewerConfig.i_pf_f=true; } else { viewerConfig.i_pf_f=false; }
+		}
+		if ('cb_i_pfI'.localeCompare(cb.id)==0) {
+			if (cb_i_pfI.checked) { viewerConfig.i_pf_p=true; } else { viewerConfig.i_pf_p=false; }
+		}
+		if ('cb_i_vF'.localeCompare(cb.id)==0) {
+			if (cb_i_vF.checked) { viewerConfig.i_volt_feed=true; } else { viewerConfig.i_volt_feed=false; }
+		}
+		if ('cb_i_vs1'.localeCompare(cb.id)==0) {
+			if (cb_i_vs1.checked) { viewerConfig.i_dc_s1_v=true; } else { viewerConfig.i_dc_s1_v=false; }
+		}
+		if ('cb_i_vs2'.localeCompare(cb.id)==0) {
+			if (cb_i_vs2.checked) { viewerConfig.i_dc_s2_v=true; } else { viewerConfig.i_dc_s2_v=false; }
+		}
+		if ('cb_i_cI'.localeCompare(cb.id)==0) {						
+			if (cb_i_cI.checked) { viewerConfig.i_cur_inv=true; } else { viewerConfig.i_cur_inv=false; }
+		}
+		if ('cb_i_ff'.localeCompare(cb.id)==0) {						
+			if (cb_i_ff.checked) { viewerConfig.i_freq_feed=true; } else { viewerConfig.i_freq_feed=false; }
+		}
+		if ('cb_i_enP'.localeCompare(cb.id)==0) {
+			if (cb_i_enP.checked) { viewerConfig.i_eng_tot_prod=true; } else { viewerConfig.i_eng_tot_prod=false; }
+		}
+		if ('cb_i_enE'.localeCompare(cb.id)==0) {
+			if (cb_i_enE.checked) { viewerConfig.i_eng_tot_out=true; } else { viewerConfig.i_eng_tot_out=false; }
+		}
+		if ('cb_i_enI'.localeCompare(cb.id)==0) {
+			if (cb_i_enI.checked) { viewerConfig.i_eng_tot_in=true; } else { viewerConfig.i_eng_tot_in=false; }
+		}
+		
+	}
+	if ('day'.localeCompare(viewerConfig.type) == 0) {
+		if ('cb_d_enD'.localeCompare(cb.id)==0) {
+			if (cb_d_enD.checked) { viewerConfig.d_eng_day=true; } else { viewerConfig.d_eng_day=false; }
+		}
+		if ('cb_d_enP'.localeCompare(cb.id)==0) {
+			if (cb_d_enP.checked) { viewerConfig.d_eng_tot_prod=true; } else { viewerConfig.d_eng_tot_prod=false; }
+		}
+		if ('cb_d_enI'.localeCompare(cb.id)==0) {
+			if (cb_d_enI.checked) { viewerConfig.d_eng_tot_in=true; } else { viewerConfig.d_eng_tot_in=false; }
+		}
+		if ('cb_d_enE'.localeCompare(cb.id)==0) {
+			if (cb_d_enE.checked) { viewerConfig.d_eng_tot_out=true; } else { viewerConfig.d_eng_tot_out=false; }
+		}
+		if ('cb_d_tiP'.localeCompare(cb.id)==0) {
+			if (cb_d_tiP.checked) { viewerConfig.d_prod_time=true; } else { viewerConfig.d_prod_time=false; }
+		}
+		if ('cb_d_pmax'.localeCompare(cb.id)==0) {
+			if (cb_d_pmax.checked) { viewerConfig.d_pow_max=true; } else { viewerConfig.d_pow_max=false; }
+		}
+		if ('cb_d_peE'.localeCompare(cb.id)==0) {
+			if (cb_d_peE.checked) { viewerConfig.d_perc_exp=true; } else { viewerConfig.d_perc_exp=false; }
+		}
+		if ('cb_d_tiS'.localeCompare(cb.id)==0) {
+			if (cb_d_tiS.checked) { viewerConfig.d_rise_time=true; } else { viewerConfig.d_rise_time=false; }
+		}if ('cb_d_tiE'.localeCompare(cb.id)==0) {
+			if (cb_d_tiE.checked) { viewerConfig.d_fall_time=true; } else { viewerConfig.d_fall_time=false; }
+		}
+		
+	}
+	parseData(doStuff);
+
+}
+
+</script>
